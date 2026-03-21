@@ -1,0 +1,8 @@
+streamlit
+pandas
+easyocr
+Pillow
+gspread
+oauth2client
+rapidfuzz
+gspread-formatting
