@@ -5,7 +5,7 @@ from PIL import Image
 import io
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from gspread_formatting import format_cell_range, CellFormat, Color  # 🔥 NEW
+from gspread_formatting import format_cell_range, CellFormat, Color
 
 # ================== GOOGLE SHEET ==================
 def connect_sheet():
@@ -14,9 +14,7 @@ def connect_sheet():
         "https://www.googleapis.com/auth/drive"
     ]
 
-    import json
     creds_dict = st.secrets["gcp_service_account"]
-
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
 
@@ -43,30 +41,19 @@ def save_data(df):
     sheet = connect_sheet()
     df = df.fillna("").astype(str)
 
-    # 🔥 SAVE DATA
     sheet.update([df.columns.values.tolist()] + df.values.tolist())
 
-    # 🔥 APPLY COLORS IN SHEET
     try:
-        name_col_index = list(df.columns).index(name_col) + 1  # 1-based index
+        name_col_index = list(df.columns).index(name_col) + 1
 
         for i, row in df.iterrows():
-            cell = f"{chr(64 + name_col_index)}{i + 2}"  # Excel style
+            cell = f"{chr(64 + name_col_index)}{i + 2}"
 
             if "__status__" in df.columns:
                 if row["__status__"] == "updated":
-                    format_cell_range(
-                        sheet,
-                        cell,
-                        CellFormat(backgroundColor=Color(0.7, 1, 0.7))  # green
-                    )
-
+                    format_cell_range(sheet, cell, CellFormat(backgroundColor=Color(0.7, 1, 0.7)))
                 elif row["__status__"] == "new":
-                    format_cell_range(
-                        sheet,
-                        cell,
-                        CellFormat(backgroundColor=Color(0.7, 0.85, 1))  # blue
-                    )
+                    format_cell_range(sheet, cell, CellFormat(backgroundColor=Color(0.7, 0.85, 1)))
     except:
         pass
 
@@ -116,12 +103,9 @@ if df_main is not None and not df_main.empty:
 
             if st.button("Mark Verified"):
                 st.session_state["backup_df"] = df_main.copy()
-
                 df_main.loc[df_main[barcode_col] == barcode_input.strip(), verify_col] = "Y"
-
                 save_data(df_main)
                 st.success("Saved")
-
         else:
             st.error("Not Found")
 
@@ -136,28 +120,29 @@ if df_main is not None and not df_main.empty:
     st.subheader("🔍 Fuzzy Search")
 
     text_input = st.text_input("Product Name", value=st.session_state.get("auto_name", ""))
-    
-    text_input = text_input.lower().strip()
-    
     user_mrp = st.text_input("MRP", value=st.session_state.get("auto_mrp", ""))
 
     if text_input:
 
         from rapidfuzz import fuzz
 
+        # 🔥 DO NOT MODIFY ORIGINAL DATA
         df = df_main.copy()
-        
-        df[name_col] = df[name_col].astype(str).str.lower().str.strip()
-        
+
+        # 🔥 CREATE TEMP LOWERCASE COLUMN
+        df["_search_name"] = df[name_col].astype(str).str.lower().str.strip()
+
+        query = text_input.lower().strip()
+
         results = []
 
         for _, row in df.iterrows():
-            name = str(row[name_col]).lower().strip()
+            name = row["_search_name"]
 
             score = (
-                fuzz.token_set_ratio(text_input, name) * 0.4 +
-                fuzz.partial_ratio(text_input, name) * 0.3 +
-                fuzz.token_sort_ratio(text_input, name) * 0.3
+                fuzz.token_set_ratio(query, name) * 0.4 +
+                fuzz.partial_ratio(query, name) * 0.3 +
+                fuzz.token_sort_ratio(query, name) * 0.3
             )
 
             if user_mrp and mrp_col:
@@ -174,7 +159,7 @@ if df_main is not None and not df_main.empty:
         output = []
         for r, s in results:
             output.append({
-                "ITEM NAME": r[name_col],
+                "ITEM NAME": r[name_col],   # 🔥 ORIGINAL NAME (UPPERCASE SAFE)
                 "BARCODE": r[barcode_col],
                 "MRP": r[mrp_col] if mrp_col else "",
                 "MATCH %": round(s, 1)
