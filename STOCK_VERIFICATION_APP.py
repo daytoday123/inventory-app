@@ -136,6 +136,9 @@ if df_main is not None and not df_main.empty:
     st.subheader("🔍 Fuzzy Search")
 
     text_input = st.text_input("Product Name", value=st.session_state.get("auto_name", ""))
+    
+    text_input = text_input.lower().strip()
+    
     user_mrp = st.text_input("MRP", value=st.session_state.get("auto_mrp", ""))
 
     if text_input:
@@ -143,12 +146,13 @@ if df_main is not None and not df_main.empty:
         from rapidfuzz import fuzz
 
         df = df_main.copy()
-        df[name_col] = df[name_col].astype(str).str.lower()
-
+        
+        df[name_col] = df[name_col].astype(str).str.lower().str.strip()
+        
         results = []
 
         for _, row in df.iterrows():
-            name = row[name_col]
+            name = str(row[name_col]).lower().strip()
 
             score = (
                 fuzz.token_set_ratio(text_input, name) * 0.4 +
